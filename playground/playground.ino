@@ -1,3 +1,30 @@
+/***********************************************************************************
+ * 
+ * For debugging purposes, you can send a number of commands using the terminal.
+ * You can put multiple commands in one line. Check out the loop() for full command
+ * list.
+ * 
+ * A few commands explained:
+ * 
+ * r to set current color to red
+ * g to set current color to green
+ * b to set current color to blue
+ * z to set current color to black
+ * 
+ * 1..9 to draw a rectangle using the current color
+ *  
+ * R rotate the screen by 90 degrees and draw some text on it.
+ * 
+ * S sleep for 1 second
+ * 
+ * o turn the display on
+ * O turn the display off
+ * 
+ * 
+ */
+
+
+
 #include <gfxfont.h>
 #include <Adafruit_GFX.h>
 
@@ -33,6 +60,10 @@
 #define LCD_GREEN  0x07E0
 #define LCD_BLUE   0x001F
 #define LCD_YELLOW 0x07ff
+
+
+
+#include "ili9481.h"
 
 
 
@@ -531,7 +562,7 @@ void setup()
   
   Lcd_Init();
 
-  Lcd_Rotate(180);
+  Lcd_Rotate(0);
   Lcd_ClearBlack();
 
 
@@ -551,26 +582,14 @@ void setup()
 
 
 unsigned int current_color = LCD_YELLOW;
-bool demo_mode = false;
-char* demo_mode_steps = "rcS bcS gcS zcSS b 1S 2S 3SS rcS bcS OSSS oS t";
-unsigned char demo_mode_pos = 0;
 int orientation = 0;
 
 void loop()
 {
   int ch = -1;
   
-  if(demo_mode) {
-    if(demo_mode_steps[demo_mode_pos]) {
-      ch = demo_mode_steps[demo_mode_pos++];
-    } else {
-      demo_mode = false;
-    }
-    
-  } else {
-    if(Serial.available()) {
-      ch = Serial.read();
-    }
+  if(Serial.available()) {
+    ch = Serial.read();
   }
 
   //Serial.print("ch: ");
@@ -627,11 +646,6 @@ void loop()
       Rect(random(300),random(300),random(300),random(300),random(65535)); // rectangle at x, y, with, hight, color
       break;
 
-    case 'd':
-      demo_mode = true;
-      demo_mode_pos = 0;
-      break;
-
     case 'S':
       delay(1000);
       break;
@@ -641,6 +655,21 @@ void loop()
       Lcd_Rotate(orientation);
       Lcd_ClearBlack();
       Lcd_Print_New(50, 50, "Hello, Peter! How do you do?", LCD_GREEN);
+      break;
+
+    case 'N':
+      Serial.println("scrolling?");
+      Lcd_Set_Scrolling_Area(50, 150);
+      Lcd_Start_Scrolling(75);
+      break;
+    case 'M':
+      break;
+
+    case 'i':
+      Lcd_Set_Invert(false);
+      break;
+    case 'I':
+      Lcd_Set_Invert(true);
       break;
       
   }
