@@ -1,3 +1,6 @@
+#include <gfxfont.h>
+#include <Adafruit_GFX.h>
+
 // Product&Sources:
 // http://www.banggood.com/3_5-Inch-TFT-Color-Screen-Module-320-X-480-Support-Arduino-UNO-Mega2560-p-1022298.html
 //
@@ -33,6 +36,10 @@
 #define LCD_YELLOW 0x07ff
 
 
+
+#include "bitstream.h"
+
+#include <Fonts/FreeMono24pt7b.h>
 extern const char my_8x8_font[];
 
 
@@ -215,6 +222,86 @@ void Lcd_Print(unsigned int x, unsigned y, const char* t, unsigned int c)
     if(x >= LCD_WIDTH) {
       x = 0;
       y += 8;
+    }
+    ++t;
+  }
+  
+  digitalWrite(LCD_CS, HIGH);
+}
+
+
+void Lcd_Print_New(unsigned int x, unsigned y, const char* t, unsigned int c)
+{
+  uint8_t i;
+
+  uint8_t h, w;
+  GFXfont font;
+  GFXglyph g;
+  BitStream in;
+
+  memcpy_P(&font, &FreeMono24pt7b, sizeof(GFXfont));
+  
+  digitalWrite(LCD_CS, LOW);
+
+  
+  while(*t)
+  {
+    if(*t < font.first || *t > font.last)
+      continue;
+      
+    memcpy_P(&g, &font.glyph[*t - font.first], sizeof(GFXglyph));
+    
+    uint8_t* bmp = font.bitmap + g.bitmapOffset;
+    in.set_addr(bmp);
+    
+    Address_set(x, y, x + g.xAdvance - 1, y + font.yAdvance - 1);
+
+//    Lcd_Write_Data(c>>8);
+//    Lcd_Write_Data(c);
+
+
+    // empty lines at top
+    for(h=0; h<font.yAdvance-g.height; ++h)
+    {
+      for(i=0; i<g.xAdvance; ++i)
+      {
+        Lcd_Write_Data(0);
+        Lcd_Write_Data(0);
+      }
+    }
+    // the char, itself!
+    for(h=0; h<g.height; ++h)
+    {
+      for(i=0; i<g.xOffset; ++i)
+      {
+        Lcd_Write_Data(0);
+        Lcd_Write_Data(0);
+      }
+
+      for(w=0; w<g.width; ++w)
+      {
+        if(in.next())
+        {
+          Lcd_Write_Data(c>>8);
+          Lcd_Write_Data(c);
+        } else {
+          Lcd_Write_Data(0);
+          Lcd_Write_Data(0);          
+        }
+      }
+
+      for(i=g.xOffset+g.width; i<g.xAdvance; ++i)
+      {
+        Lcd_Write_Data(0);
+        Lcd_Write_Data(0);
+      }
+    }
+    // FIXME: empty lines at bottom
+
+    x += g.xAdvance;
+    if((x+g.xAdvance) >= LCD_WIDTH) {
+      x = 0;
+      y += font.yAdvance;
     }
     ++t;
   }
@@ -419,6 +506,9 @@ void setup()
   Serial.println("Ready");
 
   //Lcd_Print(0, 100, " !                              @ABCDEFGHIJKLMNOPQRSTUVWXYZ       abcdefghijklmnopqrstuvwxyz", LCD_RED);
+
+  Lcd_Print_New(0, 100, "Hello, Peter!", LCD_RED);
+  //Lcd_Print_New(0, 100, " ! ", LCD_RED);
 }
 
 
