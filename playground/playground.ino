@@ -350,59 +350,90 @@ void setup()
 
 
 unsigned int current_color = LCD_YELLOW;
+bool demo_mode = false;
+char* demo_mode_steps = "rcS bcS gcS zcSS b 1S 2S 3SS rcS bcS OSSS oS t";
+unsigned char demo_mode_pos = 0;
 
 void loop()
 {
-  while(Serial.available()) {
-    int ch = Serial.read();
-    
-    switch(ch) {
-      case 'c':
-        LCD_Clear(current_color);
-        break;
-        
-      case 'r':
-        Serial.println("red");
-        current_color = LCD_RED;
-        break;
-      case 'g':
-        Serial.println("green");
-        current_color = LCD_GREEN;
-        break;
-      case 'b':
-        Serial.println("blue");
-        current_color = LCD_BLUE;
-        break;
-
-      case 'o':
-        Serial.println("display-on");
-        Lcd_Display_On(true);
-        break;
-      case 'O':
-      Serial.println("display-off");
-        Lcd_Display_On(false);
-        break;
-
-      case '1':
-      case '2':
-      case '3':
-      case '4':
-      case '5':
-      case '6':
-      case '7':
-      case '8':
-      case '9':
-        {
-          int i = ch - '1' + 1;
-          Rect(i*10, i*10, LCD_WIDTH-2*i*10, LCD_HEIGHT-2*i*10, current_color);
-          //Rect(20, 20, LCD_WIDTH-40, LCD_HEIGHT-40);
-        }
-        break;
-
-      case 'x':
-        Rect(random(300),random(300),random(300),random(300),random(65535)); // rectangle at x, y, with, hight, color
-        break;
+  int ch = -1;
+  
+  if(demo_mode) {
+    if(demo_mode_steps[demo_mode_pos]) {
+      ch = demo_mode_steps[demo_mode_pos++];
+    } else {
+      demo_mode = false;
     }
+    
+  } else {
+    if(Serial.available()) {
+      ch = Serial.read();
+    }
+  }
+
+  //Serial.print("ch: ");
+  //Serial.println(ch, HEX);
+      
+  switch(ch) {
+    case 'c':
+      LCD_Clear(current_color);
+      break;
+        
+    case 'r':
+      Serial.println("red");
+      current_color = LCD_RED;
+      break;
+    case 'g':
+      Serial.println("green");
+      current_color = LCD_GREEN;
+      break;
+    case 'b':
+      Serial.println("blue");
+      current_color = LCD_BLUE;
+      break;
+    case 'z':
+      Serial.println('black');
+      current_color = 0;
+      break;
+
+    case 'o':
+      Serial.println("display-on");
+      Lcd_Display_On(true);
+      break;
+    case 'O':
+    Serial.println("display-off");
+      Lcd_Display_On(false);
+      break;
+
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9':
+      {
+        int i = ch - '1' + 1;
+        Rect(i*10, i*10, LCD_WIDTH-2*i*10, LCD_HEIGHT-2*i*10, current_color);
+        //Rect(20, 20, LCD_WIDTH-40, LCD_HEIGHT-40);
+      }
+      break;
+
+    case 'x':
+      Rect(random(300),random(300),random(300),random(300),random(65535)); // rectangle at x, y, with, hight, color
+      break;
+
+    case 'd':
+      demo_mode = true;
+      demo_mode_pos = 0;
+      break;
+
+    case 'S':
+      delay(1000);
+      break;
+  }
 #if 0
   for(int i=0;i<1000;i++)
   {
@@ -412,5 +443,4 @@ void loop()
    
    
    
-  }
 }
