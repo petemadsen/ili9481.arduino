@@ -17,15 +17,14 @@
 #define LCD_RST A4 // reset
 
 
-#define LCD_WIDTH 320
-#define LCD_HEIGHT 480
+#define LCD_CMD_SET_COL_ADDR     0x2a
+#define LCD_CMD_SET_PAGE_ADDR    0x2b
+#define LCD_CMD_WRITE_MEM_START  0x2c
 
-#define LCD_CMD_SET_COL_ADDR 0x2a
-#define LCD_CMD_SET_PAGE_ADDR 0x2b
-#define LCD_CMD_WRITE_MEM_START 0x2c
+#define LCD_CMD_DISPLAY_ON       0x29
+#define LCD_CMD_DISPLAY_OFF      0x28
 
-#define LCD_CMD_DISPLAY_ON 0x29
-#define LCD_CMD_DISPLAY_OFF 0x28
+#define LCD_CMD_SET_ADDRESS_MODE 0x36
 
 
 #define RGB2LCD(r, g, b) (r << 16 | g << 8 | b)
@@ -41,6 +40,10 @@
 
 #include <Fonts/FreeMono24pt7b.h>
 extern const char my_8x8_font[];
+
+
+unsigned int LCD_WIDTH = 320;
+unsigned int LCD_HEIGHT = 480;
 
 
 
@@ -145,8 +148,9 @@ void Lcd_Init(void)
   //Lcd_Write_Data(0x03); // 72Hz
   Lcd_Write_Data(0x02); // 85Hz, default
   
-  Lcd_Write_Cmd(0x36); // set address mode
-  Lcd_Write_Data(0x0A); // page/column-selection, horizontal flip
+  Lcd_Write_Cmd(LCD_CMD_SET_ADDRESS_MODE); // set address mode
+  Lcd_Write_Data(0x0A); // page-address-order | page/column-selection |  horizontal flip
+  //Lcd_Write_Data(B11110101); // 180deg rotated
   
   Lcd_Write_Cmd(0x3A); // set pixel format
   Lcd_Write_Data(0x55);
@@ -165,6 +169,39 @@ void Lcd_Init(void)
   
   delay(120);
   Lcd_Write_Cmd(LCD_CMD_DISPLAY_ON); // set display on
+}
+
+
+void Lcd_Rotate(int degrees)
+{
+  Serial.print("rotate: ");
+  Serial.println(degrees);
+  uint8_t cfg = B00001010;
+  LCD_WIDTH = 320;
+  LCD_HEIGHT = 480;
+  
+  switch(degrees) {
+  case 90:
+    cfg = B00101000;
+    LCD_WIDTH = 480;
+    LCD_HEIGHT = 320;
+    break;
+  case 180:
+    cfg = B00001001;
+    LCD_WIDTH = 320;
+    LCD_HEIGHT = 480;
+    break;
+  case 270:
+    cfg = B00101011;
+    LCD_WIDTH = 480;
+    LCD_HEIGHT = 320;
+    break;
+  }
+
+  digitalWrite(LCD_CS, LOW);
+  Lcd_Write_Cmd(LCD_CMD_SET_ADDRESS_MODE);
+  Lcd_Write_Data(cfg);
+  digitalWrite(LCD_CS, HIGH);
 }
 
 
@@ -424,7 +461,7 @@ void LCD_Clear(unsigned int c)
 }
 
 
-void LCD_ClearBlack()
+void Lcd_ClearBlack()
 {
   unsigned long m = millis();
   
@@ -494,7 +531,8 @@ void setup()
   
   Lcd_Init();
 
-  LCD_ClearBlack();
+  Lcd_Rotate(180);
+  Lcd_ClearBlack();
 
 
   for(int i=0; i<5; ++i) {
@@ -507,7 +545,7 @@ void setup()
 
   //Lcd_Print(0, 100, " !                              @ABCDEFGHIJKLMNOPQRSTUVWXYZ       abcdefghijklmnopqrstuvwxyz", LCD_RED);
 
-  Lcd_Print_New(0, 100, "Hello, Peter!", LCD_RED);
+  Lcd_Print_New(0, 100, "Hello, Peter! How r u?", LCD_RED);
   //Lcd_Print_New(0, 100, " ! ", LCD_RED);
 }
 
@@ -516,6 +554,7 @@ unsigned int current_color = LCD_YELLOW;
 bool demo_mode = false;
 char* demo_mode_steps = "rcS bcS gcS zcSS b 1S 2S 3SS rcS bcS OSSS oS t";
 unsigned char demo_mode_pos = 0;
+int orientation = 0;
 
 void loop()
 {
@@ -596,6 +635,14 @@ void loop()
     case 'S':
       delay(1000);
       break;
+
+    case 'R':
+      orientation = (orientation + 90) % 360;
+      Lcd_Rotate(orientation);
+      Lcd_ClearBlack();
+      Lcd_Print_New(50, 50, "Hello, Peter! How do you do?", LCD_GREEN);
+      break;
+      
   }
 #if 0
   for(int i=0;i<1000;i++)
