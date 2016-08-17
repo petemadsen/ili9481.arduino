@@ -25,9 +25,15 @@
 #define LCD_CMD_DISPLAY_OFF 0x28
 
 
-#define LCD_RED 0xf800
-#define LCD_GREEN 0x07E0
-#define LCD_BLUE 0x001F
+#define RGB2LCD(r, g, b) (r << 16 | g << 8 | b)
+
+#define LCD_RED    0xf800
+#define LCD_GREEN  0x07E0
+#define LCD_BLUE   0x001F
+#define LCD_YELLOW 0x07ff
+
+
+extern const char my_8x8_font[];
 
 
 
@@ -134,7 +140,8 @@ void Lcd_Init(void)
   Lcd_Write_Data(0x11);
   
   Lcd_Write_Com(0xC5); // frame rate & inversion control
-  Lcd_Write_Data(0x03);
+  //Lcd_Write_Data(0x03); // 72Hz
+  Lcd_Write_Data(0x02); // 85Hz, default
   
   Lcd_Write_Com(0x36); // set address mode
   Lcd_Write_Data(0x0A); // page/column-selection, horizontal flip
@@ -172,6 +179,54 @@ void Lcd_Set_Pixel(unsigned int x, unsigned int y, unsigned int c)
   Lcd_Write_Data(c);
 
   digitalWrite(LCD_CS,HIGH);
+}
+
+
+void Lcd_Print(unsigned int x, unsigned y, const char* t, unsigned int c)
+{
+  unsigned char i, k;
+  unsigned char row;
+  unsigned char mask;
+  char* p;
+  
+  digitalWrite(LCD_CS, LOW);
+
+  x = x / 8 * 8;
+  
+  while(*t)
+  {
+    if(*t < 32 || *t > 127)
+      continue;
+      
+    p = my_8x8_font + (*t - ' ') * 8;
+    
+    Address_set(x, y, x + 7, y + 7);
+
+    for(i=0; i<8; ++i) {
+      row = p[i];
+      mask = 0x80;
+      for(k=0; k<8; ++k)
+      {
+        if(row & mask) {
+          Lcd_Write_Data(c>>8);
+          Lcd_Write_Data(c);
+        } else {
+          Lcd_Write_Data(0);
+          Lcd_Write_Data(0);
+        }
+        mask >>= 1;
+      }
+    }
+
+    x += 8;
+    if(x >= LCD_WIDTH) {
+      x = 0;
+      y += 8;
+    }
+    ++t;
+  }
+  
+  digitalWrite(LCD_CS, HIGH);
 }
 
 
@@ -213,6 +268,7 @@ void V_line(unsigned int x, unsigned int y, unsigned int h, unsigned int c)
 
 void Rect(unsigned int x,unsigned int y, unsigned int w, unsigned int h, unsigned int c)
 {
+  Serial.println("rect");
   H_line(x  , y  , w, c);
   H_line(x  , y+h, w, c);
   V_line(x  , y  , h, c);
@@ -228,12 +284,6 @@ void Rectf(unsigned int x,unsigned int y,unsigned int w,unsigned int h,unsigned 
     H_line(x  , y  , w, c);
     H_line(x  , y+i, w, c);
   }
-}
-
-
-int RGB(int r,int g,int b)
-{
-  return r << 16 | g << 8 | b;
 }
 
 
@@ -287,15 +337,19 @@ void setup()
   Lcd_Init();
   LCD_Clear(0x0);
 
-  for(int i=0; i<9; ++i) {
-    Lcd_Set_Pixel(i, i, LCD_RED);
+  for(int i=0; i<5; ++i) {
+    Lcd_Set_Pixel(5, i, LCD_RED);
+    Lcd_Set_Pixel(10, 5+i, LCD_RED);
+    Lcd_Set_Pixel(5, 10+i, LCD_RED);
   }
   
   Serial.println("Ready");
+
+  Lcd_Print(0, 100, " !                              @ABCDEFGHIJKLMNOPQRSTUVWXYZ       abcdefghijklmnopqrstuvwxyz", LCD_RED);
 }
 
 
-unsigned int current_color = LCD_RED;
+unsigned int current_color = LCD_YELLOW;
 
 void loop()
 {
@@ -312,11 +366,11 @@ void loop()
         current_color = LCD_RED;
         break;
       case 'g':
-      Serial.println("green");
+        Serial.println("green");
         current_color = LCD_GREEN;
         break;
       case 'b':
-      Serial.println("blue");
+        Serial.println("blue");
         current_color = LCD_BLUE;
         break;
 
@@ -340,8 +394,6 @@ void loop()
       case '9':
         {
           int i = ch - '1' + 1;
-          Serial.print("rect ");
-          Serial.println(i);
           Rect(i*10, i*10, LCD_WIDTH-2*i*10, LCD_HEIGHT-2*i*10, current_color);
           //Rect(20, 20, LCD_WIDTH-40, LCD_HEIGHT-40);
         }
