@@ -39,57 +39,52 @@ extern const char my_8x8_font[];
 
 #define WR_MASK B00000010
 #define RS_MASK B00000100
-void Lcd_Writ_Bus(unsigned char d)
+#define CS_MASK B00001000
+inline void Lcd_Writ_Bus(unsigned char d)
 {
   PORTH &= ~(0x78);
   PORTH |= ((d&0xC0) >> 3) | ((d&0x3) << 5);
+  
   PORTE &= ~(0x38);
   PORTE |= ((d & 0xC) << 2) | ((d & 0x20) >> 2);
+  
   PORTG &= ~(0x20);
-  PORTG |= (d & 0x10) << 1;  
+  PORTG |= (d & 0x10) << 1;
+  
   PORTF &= ~WR_MASK;
   PORTF |=  WR_MASK;
 }
 
 
-void Lcd_Write_Com(unsigned char VH)  
+inline void Lcd_Write_Cmd(unsigned char d)  
 {   
-  PORTF &= ~RS_MASK;//RS=0
-  Lcd_Writ_Bus(VH);
+  PORTF &= ~RS_MASK; // LCD_RS=0
+  Lcd_Writ_Bus(d);
 }
 
 
-void Lcd_Write_Data(unsigned char VH)
+inline void Lcd_Write_Data(unsigned char d)
 {
-  PORTF |= RS_MASK;//LCD_RS=1;
-  Lcd_Writ_Bus(VH);
+  PORTF |= RS_MASK; // LCD_RS=1;
+  Lcd_Writ_Bus(d);
 }
 
 
 void Address_set(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2)
 {
-  Serial.print("address-set: ");
-  Serial.print(x1);
-  Serial.print(", ");
-  Serial.print(y1);
-  Serial.print(", ");
-  Serial.print(x2);
-  Serial.print(", ");
-  Serial.println(y2);
-  
-  Lcd_Write_Com(LCD_CMD_SET_COL_ADDR);
+  Lcd_Write_Cmd(LCD_CMD_SET_COL_ADDR);
 	Lcd_Write_Data(x1>>8);
 	Lcd_Write_Data(x1);
 	Lcd_Write_Data(x2>>8);
 	Lcd_Write_Data(x2);
   
-  Lcd_Write_Com(LCD_CMD_SET_PAGE_ADDR);
+  Lcd_Write_Cmd(LCD_CMD_SET_PAGE_ADDR);
 	Lcd_Write_Data(y1>>8);
 	Lcd_Write_Data(y1);
 	Lcd_Write_Data(y2>>8);
 	Lcd_Write_Data(y2);
  
-	Lcd_Write_Com(LCD_CMD_WRITE_MEM_START);
+	Lcd_Write_Cmd(LCD_CMD_WRITE_MEM_START);
 }
 
 
@@ -97,7 +92,7 @@ void Address_set(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int
 void Lcd_Display_On(bool b)
 {
   digitalWrite(LCD_CS, LOW);
-  Lcd_Write_Com(b ? LCD_CMD_DISPLAY_ON : LCD_CMD_DISPLAY_OFF);
+  Lcd_Write_Cmd(b ? LCD_CMD_DISPLAY_ON : LCD_CMD_DISPLAY_OFF);
   digitalWrite(LCD_CS, HIGH);
 }
 
@@ -115,56 +110,54 @@ void Lcd_Init(void)
   digitalWrite(LCD_WR, HIGH);
   digitalWrite(LCD_CS, LOW);  //CS
   
-  Lcd_Write_Com(0x11); // exit sleep mode
+  Lcd_Write_Cmd(0x11); // exit sleep mode
   delay(20);
   
-  Lcd_Write_Com(0xD0); // power settings
+  Lcd_Write_Cmd(0xD0); // power settings
   Lcd_Write_Data(0x07);
   Lcd_Write_Data(0x42);
   Lcd_Write_Data(0x18);
   
-  Lcd_Write_Com(0xD1); // vcom control
+  Lcd_Write_Cmd(0xD1); // vcom control
   Lcd_Write_Data(0x00);
   Lcd_Write_Data(0x07);
   Lcd_Write_Data(0x10);
   
-  Lcd_Write_Com(0xD2); // power settings for normal mode
+  Lcd_Write_Cmd(0xD2); // power settings for normal mode
   Lcd_Write_Data(0x01);
   Lcd_Write_Data(0x02);
   
-  Lcd_Write_Com(0xC0); // panel driving setting
+  Lcd_Write_Cmd(0xC0); // panel driving setting
   Lcd_Write_Data(0x10);
   Lcd_Write_Data(0x3B);
   Lcd_Write_Data(0x00);
   Lcd_Write_Data(0x02);
   Lcd_Write_Data(0x11);
   
-  Lcd_Write_Com(0xC5); // frame rate & inversion control
+  Lcd_Write_Cmd(0xC5); // frame rate & inversion control
   //Lcd_Write_Data(0x03); // 72Hz
   Lcd_Write_Data(0x02); // 85Hz, default
   
-  Lcd_Write_Com(0x36); // set address mode
+  Lcd_Write_Cmd(0x36); // set address mode
   Lcd_Write_Data(0x0A); // page/column-selection, horizontal flip
   
-  Lcd_Write_Com(0x3A); // set pixel format
+  Lcd_Write_Cmd(0x3A); // set pixel format
   Lcd_Write_Data(0x55);
   
-  Lcd_Write_Com(LCD_CMD_SET_COL_ADDR);
+  Lcd_Write_Cmd(LCD_CMD_SET_COL_ADDR);
   Lcd_Write_Data(0x00);
   Lcd_Write_Data(0x00);
   Lcd_Write_Data(0x01);
   Lcd_Write_Data(0x3F);
   
-  Lcd_Write_Com(LCD_CMD_SET_PAGE_ADDR);
+  Lcd_Write_Cmd(LCD_CMD_SET_PAGE_ADDR);
   Lcd_Write_Data(0x00);
   Lcd_Write_Data(0x00);
   Lcd_Write_Data(0x01);
   Lcd_Write_Data(0xE0);
   
   delay(120);
-  Lcd_Write_Com(LCD_CMD_DISPLAY_ON); // set display on
-  
-  //Lcd_Write_Com(0x002c); 
+  Lcd_Write_Cmd(LCD_CMD_DISPLAY_ON); // set display on
 }
 
 
@@ -288,25 +281,103 @@ void Rectf(unsigned int x,unsigned int y,unsigned int w,unsigned int h,unsigned 
 
 
 void LCD_Clear(unsigned int c)                   
-{	
-  unsigned int i,m;
-
-  Serial.println("lcd-clear");
+{
+  unsigned long m = millis();
+  
+  unsigned int i, k;
 
   digitalWrite(LCD_CS, LOW);
+  //PORTF &= ~CS_MASK; // LOW
   
   Address_set(0, 0, LCD_WIDTH - 1, LCD_HEIGHT - 1);
 
-  for(i=0;i<LCD_HEIGHT; i++)
+  PORTF |= RS_MASK; // LCD_RS=1;
+  unsigned int c1 = c>>8;
+
+  for(i=0; i<LCD_HEIGHT; ++i)
   {
-    for(m=0;m<LCD_WIDTH;m++)
+    for(k=0; k<LCD_WIDTH; ++k)
     {
-      Lcd_Write_Data(c>>8);
-      Lcd_Write_Data(c);
+      //Lcd_Write_Data(c>>8);
+      //PORTF |= RS_MASK; // LCD_RS=1;
+      //Lcd_Writ_Bus(c>>8);
+      //
+      PORTH &= ~(0x78);
+      PORTH |= ((c1&0xC0) >> 3) | ((c1&0x3) << 5);
+      PORTE &= ~(0x38);
+      PORTE |= ((c1 & 0xC) << 2) | ((c1 & 0x20) >> 2);
+      PORTG &= ~(0x20);
+      PORTG |= (c1 & 0x10) << 1;
+      PORTF &= ~WR_MASK;
+      PORTF |=  WR_MASK;
+      
+      //Lcd_Write_Data(c);
+      //PORTF |= RS_MASK; // LCD_RS=1;
+      //Lcd_Writ_Bus(c);
+      //
+      PORTH &= ~(0x78);
+      PORTH |= ((c&0xC0) >> 3) | ((c&0x3) << 5);
+      PORTE &= ~(0x38);
+      PORTE |= ((c & 0xC) << 2) | ((c & 0x20) >> 2);
+      PORTG &= ~(0x20);
+      PORTG |= (c & 0x10) << 1;
+      PORTF &= ~WR_MASK;
+      PORTF |=  WR_MASK;
     }
   }
     
-  digitalWrite(LCD_CS, HIGH);   
+  digitalWrite(LCD_CS, HIGH);
+  //PORTF |= CS_MASK; // HIGH
+
+  m = millis() - m;
+
+  Serial.println("lcd-clear");
+  Serial.print("m: ");
+  Serial.println(m);
+}
+
+
+void LCD_ClearBlack()
+{
+  unsigned long m = millis();
+  
+  unsigned int ii, kk;
+
+  PORTF &= ~CS_MASK; // LOW
+  
+  Address_set(0, 0, LCD_WIDTH - 1, LCD_HEIGHT - 1);
+
+  PORTF |= RS_MASK; // LCD_RS=1;
+
+  PORTH &= ~(0x78); // clear all data bits
+  PORTE &= ~(0x38);
+  PORTG &= ~(0x20);
+
+  for(ii=0; ii<LCD_HEIGHT; ++ii)
+  {
+    for(kk=0; kk<LCD_WIDTH/4; ++kk)
+    {
+      PORTF &= ~WR_MASK; PORTF |=  WR_MASK;
+      PORTF &= ~WR_MASK; PORTF |=  WR_MASK;
+
+      PORTF &= ~WR_MASK; PORTF |=  WR_MASK;
+      PORTF &= ~WR_MASK; PORTF |=  WR_MASK;
+      
+      PORTF &= ~WR_MASK; PORTF |=  WR_MASK;
+      PORTF &= ~WR_MASK; PORTF |=  WR_MASK;
+      
+      PORTF &= ~WR_MASK; PORTF |=  WR_MASK;
+      PORTF &= ~WR_MASK; PORTF |=  WR_MASK;
+    }
+  }
+    
+  PORTF |= CS_MASK; // HIGH
+
+  m = millis() - m;
+
+  Serial.println("lcd-clear");
+  Serial.print("m: ");
+  Serial.println(m);
 }
 
 
@@ -335,7 +406,9 @@ void setup()
   digitalWrite(LCD_RST, HIGH);
   
   Lcd_Init();
-  LCD_Clear(0x0);
+
+  LCD_ClearBlack();
+
 
   for(int i=0; i<5; ++i) {
     Lcd_Set_Pixel(5, i, LCD_RED);
@@ -345,7 +418,7 @@ void setup()
   
   Serial.println("Ready");
 
-  Lcd_Print(0, 100, " !                              @ABCDEFGHIJKLMNOPQRSTUVWXYZ       abcdefghijklmnopqrstuvwxyz", LCD_RED);
+  //Lcd_Print(0, 100, " !                              @ABCDEFGHIJKLMNOPQRSTUVWXYZ       abcdefghijklmnopqrstuvwxyz", LCD_RED);
 }
 
 
