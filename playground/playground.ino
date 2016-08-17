@@ -39,7 +39,7 @@
 //              : PH4  PH3 PE3 PG5 PE5 PE4 PH6 PH5
 #define LCD_RD  A0 // ? data read
 #define LCD_WR  A1 // ? data write
-#define LCD_RS  A2 // ? data-or-command ? low if command
+#define LCD_RS  A2 // ? data-or-command ? low if command, DC/X
 #define LCD_CS  A3 // chip select, low enable
 #define LCD_RST A4 // reset
 
@@ -78,9 +78,6 @@ unsigned int LCD_HEIGHT = 480;
 
 
 
-#define WR_MASK B00000010
-#define RS_MASK B00000100
-#define CS_MASK B00001000
 inline void Lcd_Writ_Bus(unsigned char d)
 {
   PORTH &= ~(0x78);
@@ -106,7 +103,7 @@ inline void Lcd_Write_Cmd(unsigned char d)
 
 inline void Lcd_Write_Data(unsigned char d)
 {
-  PORTF |= RS_MASK; // LCD_RS=1;
+  LCD_DATA;
   Lcd_Writ_Bus(d);
 }
 
@@ -309,7 +306,7 @@ void Lcd_Print_New(unsigned int x, unsigned y, const char* t, unsigned int c)
 
   memcpy_P(&font, &FreeMono24pt7b, sizeof(GFXfont));
   
-  digitalWrite(LCD_CS, LOW);
+  CS_ON;
 
   
   while(*t)
@@ -374,7 +371,7 @@ void Lcd_Print_New(unsigned int x, unsigned y, const char* t, unsigned int c)
     ++t;
   }
   
-  digitalWrite(LCD_CS, HIGH);
+  CS_OFF;
 }
 
 
@@ -544,15 +541,15 @@ void setup()
   {
     pinMode(p,OUTPUT);
   }*/
-  DDRH |= 0x78;
+  DDRH |= 0x78; // pinMode OUTPUT
   DDRE |= 0x38;
   DDRG |= 0x20;
   
-  pinMode(LCD_RD,OUTPUT);
-  pinMode(LCD_WR,OUTPUT);
-  pinMode(LCD_RS,OUTPUT);
-  pinMode(LCD_CS,OUTPUT);
-  pinMode(LCD_RST,OUTPUT);
+  pinMode(LCD_RD, OUTPUT);
+  pinMode(LCD_WR, OUTPUT);
+  pinMode(LCD_RS, OUTPUT);
+  pinMode(LCD_CS, OUTPUT);
+  pinMode(LCD_RST, OUTPUT);
   
   digitalWrite(LCD_RD, HIGH);
   digitalWrite(LCD_WR, HIGH);
@@ -561,6 +558,7 @@ void setup()
   digitalWrite(LCD_RST, HIGH);
   
   Lcd_Init();
+  Lcd_Device_Info();
 
   Lcd_Rotate(0);
   Lcd_ClearBlack();
@@ -670,6 +668,10 @@ void loop()
       break;
     case 'I':
       Lcd_Set_Invert(true);
+      break;
+
+    case '?':
+      Lcd_Device_Info();
       break;
       
   }
