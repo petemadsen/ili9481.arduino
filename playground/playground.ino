@@ -90,7 +90,9 @@ void Address_set(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int
 // FIXME: does not work
 void Lcd_Display_On(bool b)
 {
+  digitalWrite(LCD_CS, LOW);
   Lcd_Write_Com(b ? LCD_CMD_DISPLAY_ON : LCD_CMD_DISPLAY_OFF);
+  digitalWrite(LCD_CS, HIGH);
 }
 
 
@@ -270,17 +272,17 @@ void setup()
   DDRE |= 0x38;
   DDRG |= 0x20;
   
-  pinMode(A0,OUTPUT);
-  pinMode(A1,OUTPUT);
-  pinMode(A2,OUTPUT);
-  pinMode(A3,OUTPUT);
-  pinMode(A4,OUTPUT);
+  pinMode(LCD_RD,OUTPUT);
+  pinMode(LCD_WR,OUTPUT);
+  pinMode(LCD_RS,OUTPUT);
+  pinMode(LCD_CS,OUTPUT);
+  pinMode(LCD_RST,OUTPUT);
   
-  digitalWrite(A0, HIGH);
-  digitalWrite(A1, HIGH);
-  digitalWrite(A2, HIGH);
-  digitalWrite(A3, HIGH);
-  digitalWrite(A4, HIGH);
+  digitalWrite(LCD_RD, HIGH);
+  digitalWrite(LCD_WR, HIGH);
+  digitalWrite(LCD_RS, HIGH);
+  digitalWrite(LCD_CS, HIGH);
+  digitalWrite(LCD_RST, HIGH);
   
   Lcd_Init();
   LCD_Clear(0x0);
