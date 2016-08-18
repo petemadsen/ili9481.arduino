@@ -7,6 +7,20 @@
 #include <Fonts/FreeMono24pt7b.h>
 
 
+// Product&Sources:
+// http://www.banggood.com/3_5-Inch-TFT-Color-Screen-Module-320-X-480-Support-Arduino-UNO-Mega2560-p-1022298.html
+//
+// Breakout/Arduino UNO pin usage:
+// LCD Data Bit :   7   6   5   4   3   2   1   0
+// Uno dig. pin :   7   6   5   4   3   2   9   8
+// Uno port/pin : PD7 PD6 PD5 PD4 PD3 PD2 PB1 PB0
+// Mega dig. pin:  29  28  27  26  25  24  23  22
+//              : PH4  PH3 PE3 PG5 PE5 PE4 PH6 PH5
+//
+// setDataOutputDirection()
+// setDataInputDirection()
+
+
 
 #define LCD_CMD_SET_COL_ADDR     0x2a
 #define LCD_CMD_SET_PAGE_ADDR    0x2b
@@ -105,7 +119,6 @@ void LcdIli9481::begin()
   
   writeCmd(LCD_CMD_SET_ADDRESS_MODE); // set address mode
   writeData(0x0A); // page-address-order | page/column-selection |  horizontal flip
-  //writeData(B11110101); // 180deg rotated
   
   writeCmd(0x3A); // set pixel format
   writeData(0x55);
@@ -144,7 +157,7 @@ void LcdIli9481::setDataInputDirection()
 
 
 /* Seem to move parts of the screen
-void Lcd_Set_Scrolling_Area(unsigned int top, unsigned int height)
+void Lcd_Set_Scrolling_Area(uint16_t top, uint16_t height)
 {
   digitalWrite(LCD_CS, LOW);
   writeCmd(0x33);
@@ -156,7 +169,7 @@ void Lcd_Set_Scrolling_Area(unsigned int top, unsigned int height)
   writeData(top+height);
   digitalWrite(LCD_CS, HIGH);
 }
-void Lcd_Start_Scrolling(unsigned int line)
+void Lcd_Start_Scrolling(uint16_t line)
 {
   digitalWrite(LCD_CS, LOW);
   writeCmd(0x37);
@@ -169,20 +182,17 @@ void Lcd_Start_Scrolling(unsigned int line)
 
 void LcdIli9481::setInvert(bool doit)
 {
-  digitalWrite(LCD_CS, LOW);
+  CS_ON;
   writeCmd(doit ? 0x21 : 0x20);
-  digitalWrite(LCD_CS, HIGH);
+  CS_OFF;
 }
 
 
 
-uint8_t Lcd_Read_From_Bus()
+uint8_t LcdIli9481::readFromBus()
 {
   uint8_t d = 0;
 
-  //PORTF |= RS_MASK; // LCD_RS=1; data
-
-  //PORTF |=  RD_MASK;
   PORTF &= ~RD_MASK;
   delay(10);
   
@@ -200,53 +210,43 @@ uint8_t Lcd_Read_From_Bus()
   //PORTG |= (d & 0x10) << 1;
   d |= (PING & 0x20) >> 1;
 
-  //PORTF &= ~RD_MASK;
   PORTF |=  RD_MASK;
 
   return d;
 }
 
 
-void LcdIli9481::info()
+uint16_t LcdIli9481::info()
 {
+  uint16_t device_id = 0;
+  uint8_t d0, dh, dl;
+  
   CS_ON;
-
-  //PORTF |=  RD_MASK;
   
   writeCmd(0xbf);
-
-  //PORTF &= ~WR_MASK;
-  //PORTF |=  WR_MASK;
   
-
-  // input mode
-  DDRH &= ~(0x78);
-  DDRE &= ~(0x38);
-  DDRG &= ~(0x20);
+  setDataInputDirection();
 
   LCD_BUS_DATA;
   
-  Serial.println("DEVICEINFO.BEGIN");
-  Serial.println(Lcd_Read_From_Bus(), HEX);
-  Serial.println(Lcd_Read_From_Bus(), HEX);
-  Serial.println(Lcd_Read_From_Bus(), HEX);
-  Serial.println(Lcd_Read_From_Bus(), HEX);
-  Serial.println(Lcd_Read_From_Bus(), HEX);
-  Serial.println(Lcd_Read_From_Bus(), HEX);
-  Serial.println("DEVICEINFO.END");
+  d0 = readFromBus(); //Serial.println(d0, HEX);
+  d0 = readFromBus(); //Serial.println(d0, HEX);
+  d0 = readFromBus(); //Serial.println(d0, HEX);
+  dh = readFromBus(); //Serial.println(dh, HEX);
+  dl = readFromBus(); //Serial.println(dl, HEX);
+  d0 = readFromBus(); //Serial.println(d0, HEX);
 
-  // pin mode restored
-  DDRH |= 0x78;
-  DDRE |= 0x38;
-  DDRG |= 0x20;
+  device_id = (dh << 8) | dl;
+
+  setDataOutputDirection();
 
   CS_OFF;
+
+  return device_id;
 }
 
 
-
-
-inline void LcdIli9481::write2bus(unsigned char d)
+inline void LcdIli9481::writeToBus(uint8_t d)
 {
   PORTH &= ~(0x78);
   PORTH |= ((d&0xC0) >> 3) | ((d&0x3) << 5);
@@ -262,21 +262,21 @@ inline void LcdIli9481::write2bus(unsigned char d)
 }
 
 
-inline void LcdIli9481::writeCmd(unsigned char d)
+inline void LcdIli9481::writeCmd(uint8_t d)
 {   
   LCD_BUS_CMD;
-  write2bus(d);
+  writeToBus(d);
 }
 
 
-inline void LcdIli9481::writeData(unsigned char d)
+inline void LcdIli9481::writeData(uint8_t d)
 {
   LCD_BUS_DATA;
-  write2bus(d);
+  writeToBus(d);
 }
 
 
-void LcdIli9481::setAddress(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2)
+void LcdIli9481::setAddress(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2)
 {
   writeCmd(LCD_CMD_SET_COL_ADDR);
   writeData(x1>>8);
@@ -296,13 +296,10 @@ void LcdIli9481::setAddress(unsigned int x1, unsigned int y1, unsigned int x2, u
 
 void LcdIli9481::setOn(bool b)
 {
-  digitalWrite(LCD_CS, LOW);
+  CS_ON;
   writeCmd(b ? LCD_CMD_DISPLAY_ON : LCD_CMD_DISPLAY_OFF);
-  digitalWrite(LCD_CS, HIGH);
+  CS_OFF;
 }
-
-
-
 
 
 void LcdIli9481::rotate(int degrees)
@@ -331,31 +328,33 @@ void LcdIli9481::rotate(int degrees)
     break;
   }
 
-  digitalWrite(LCD_CS, LOW);
+  CS_ON;
   writeCmd(LCD_CMD_SET_ADDRESS_MODE);
   writeData(cfg);
-  digitalWrite(LCD_CS, HIGH);
+  CS_OFF;
 }
 
 
-
-void LcdIli9481::clear(unsigned int c)
+void LcdIli9481::clear(uint16_t c)
 {
-  unsigned long m = millis();
-  
-  unsigned int i, k;
+  drawFilledRect(0, 0, LCD_WIDTH, LCD_HEIGHT, c);
+}
 
-  digitalWrite(LCD_CS, LOW);
-  //PORTF &= ~CS_MASK; // LOW
+
+void LcdIli9481::drawFilledRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t c)
+{
+  uint16_t i, k;
+
+  CS_ON;
   
-  setAddress(0, 0, LCD_WIDTH - 1, LCD_HEIGHT - 1);
+  setAddress(x, y, x + w - 1, y + h - 1);
 
   PORTF |= RS_MASK; // LCD_RS=1;
-  unsigned int c1 = c>>8;
+  uint16_t c1 = c>>8;
 
-  for(i=0; i<LCD_HEIGHT; ++i)
+  for(i=0; i<h; ++i)
   {
-    for(k=0; k<LCD_WIDTH; ++k)
+    for(k=0; k<w; ++k)
     {
       //writeData(c>>8);
       //PORTF |= RS_MASK; // LCD_RS=1;
@@ -385,20 +384,12 @@ void LcdIli9481::clear(unsigned int c)
     }
   }
     
-  digitalWrite(LCD_CS, HIGH);
-  //PORTF |= CS_MASK; // HIGH
-
-  m = millis() - m;
-
-  Serial.println("lcd-clear");
-  Serial.print("m: ");
-  Serial.println(m);
+  CS_OFF;
 }
 
 
-
 /*
-void Lcd_Set_Pixel(unsigned int x, unsigned int y, unsigned int c)
+void Lcd_Set_Pixel(uint16_t x, uint16_t y, uint16_t c)
 {
   Serial.println("set-pixel");
 
@@ -413,11 +404,11 @@ void Lcd_Set_Pixel(unsigned int x, unsigned int y, unsigned int c)
 */
 
 /*
-void Lcd_Print(unsigned int x, unsigned y, const char* t, unsigned int c)
+void Lcd_Print(uint16_t x, unsigned y, const char* t, uint16_t c)
 {
-  unsigned char i, k;
-  unsigned char row;
-  unsigned char mask;
+  uint8_t i, k;
+  uint8_t row;
+  uint8_t mask;
   char* p;
   
   digitalWrite(LCD_CS, LOW);
@@ -461,7 +452,7 @@ void Lcd_Print(unsigned int x, unsigned y, const char* t, unsigned int c)
 }
 */
 
-void LcdIli9481::drawText(const char* t, unsigned int x, unsigned y, unsigned int c)
+void LcdIli9481::drawText(const char* t, uint16_t x, unsigned y, uint16_t c)
 {
   uint8_t i;
 
@@ -541,11 +532,11 @@ void LcdIli9481::drawText(const char* t, unsigned int x, unsigned y, unsigned in
 }
 
 
-void LcdIli9481::drawHorizontalLine(unsigned int x, unsigned int y, unsigned int l, unsigned int c)
+void LcdIli9481::drawHorizontalLine(uint16_t x, uint16_t y, uint16_t l, uint16_t c)
 {
-  unsigned int i;
+  uint16_t i;
   
-  digitalWrite(LCD_CS, LOW);
+  CS_ON;
   
   setAddress(x, y, x+l,y);
   
@@ -555,15 +546,15 @@ void LcdIli9481::drawHorizontalLine(unsigned int x, unsigned int y, unsigned int
     writeData(c);
   }
   
-  digitalWrite(LCD_CS,HIGH);   
+  CS_OFF;
 }
 
 
-void LcdIli9481::drawVerticalLine(unsigned int x, unsigned int y, unsigned int h, unsigned int c)
+void LcdIli9481::drawVerticalLine(uint16_t x, uint16_t y, uint16_t h, uint16_t c)
 {  
-  unsigned int i;
+  uint16_t i;
   
-  digitalWrite(LCD_CS,LOW);
+  CS_ON;
   
   setAddress(x, y, x, y+h);
   
@@ -573,11 +564,11 @@ void LcdIli9481::drawVerticalLine(unsigned int x, unsigned int y, unsigned int h
     writeData(c);
   }
   
-  digitalWrite(LCD_CS, HIGH);   
+  CS_OFF;
 }
 
 
-void LcdIli9481::drawRect(unsigned int x,unsigned int y, unsigned int w, unsigned int h, unsigned int c)
+void LcdIli9481::drawRect(uint16_t x,uint16_t y, uint16_t w, uint16_t h, uint16_t c)
 {
   Serial.println("rect");
   drawHorizontalLine(x  , y  , w, c);
@@ -588,9 +579,9 @@ void LcdIli9481::drawRect(unsigned int x,unsigned int y, unsigned int w, unsigne
 
 
 /*
-void Rectf(unsigned int x,unsigned int y,unsigned int w,unsigned int h,unsigned int c)
+void Rectf(uint16_t x,uint16_t y,uint16_t w,uint16_t h,uint16_t c)
 {
-  unsigned int i;
+  uint16_t i;
   for(i=0;i<h;i++)
   {
     H_line(x  , y  , w, c);
@@ -606,9 +597,9 @@ void LcdIli9481::clearBlack()
 {
   unsigned long m = millis();
   
-  unsigned int ii, kk;
+  uint16_t ii, kk;
 
-  PORTF &= ~CS_MASK; // LOW
+  CS_ON;
   
   setAddress(0, 0, LCD_WIDTH - 1, LCD_HEIGHT - 1);
 
@@ -636,7 +627,7 @@ void LcdIli9481::clearBlack()
     }
   }
     
-  PORTF |= CS_MASK; // HIGH
+  CS_OFF;
 
   m = millis() - m;
 

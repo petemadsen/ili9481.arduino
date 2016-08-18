@@ -7,7 +7,7 @@ class BitStream
 public:
   void set_addr(const uint8_t* addr)
   {
-    p = addr;
+    p = (uint8_t*)addr;
     mask = 0;
   }
 

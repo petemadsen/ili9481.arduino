@@ -9,10 +9,11 @@ class LcdIli9481
 public:
   void begin();
 
-  void info();
+  // returns device ID
+  uint16_t info();
 
-  unsigned int width() const { return LCD_WIDTH; }
-  unsigned int height() const { return LCD_HEIGHT; }
+  uint16_t width() const { return LCD_WIDTH; }
+  uint16_t height() const { return LCD_HEIGHT; }
 
   void setInvert(bool b);
 
@@ -20,27 +21,30 @@ public:
 
   void setOn(bool b);
 
-  void clear(unsigned int c);
+  void clear(uint16_t c);
   void clearBlack();
 
-  void drawText(const char* t, unsigned int x, unsigned y, unsigned int c);
-  void drawHorizontalLine(unsigned int x, unsigned int y, unsigned int l, unsigned int c);
-  void drawVerticalLine(unsigned int x, unsigned int y, unsigned int l, unsigned int c);
-  void drawRect(unsigned int x,unsigned int y, unsigned int w, unsigned int h, unsigned int c);
+  void drawText(const char* t, uint16_t x, unsigned y, uint16_t c);
+  void drawHorizontalLine(uint16_t x, uint16_t y, uint16_t l, uint16_t c);
+  void drawVerticalLine(uint16_t x, uint16_t y, uint16_t l, uint16_t c);
+  void drawRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t c);
+  void drawFilledRect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t c);
 
 private:
   void setDataOutputDirection();
   void setDataInputDirection();
 
-  void write2bus(unsigned char d);
-  void writeCmd(unsigned char d);
-  void writeData(unsigned char d);
+  void writeToBus(uint8_t d);
+  uint8_t readFromBus();
+  
+  void writeCmd(uint8_t d);
+  void writeData(uint8_t d);
 
-  void setAddress(unsigned int x1, unsigned int y1, unsigned int x2, unsigned int y2);
+  void setAddress(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2);
 
 private:
-  unsigned int LCD_WIDTH = 320;
-  unsigned int LCD_HEIGHT = 480;
+  uint16_t LCD_WIDTH = 320;
+  uint16_t LCD_HEIGHT = 480;
 };
 
 

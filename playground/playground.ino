@@ -24,21 +24,8 @@
  */
 
 
-
-
-
-// Product&Sources:
-// http://www.banggood.com/3_5-Inch-TFT-Color-Screen-Module-320-X-480-Support-Arduino-UNO-Mega2560-p-1022298.html
-//
-// Breakout/Arduino UNO pin usage:
-// LCD Data Bit :   7   6   5   4   3   2   1   0
-// Uno dig. pin :   7   6   5   4   3   2   9   8
-// Uno port/pin : PD7 PD6 PD5 PD4 PD3 PD2 PB1 PB0
-// Mega dig. pin:  29  28  27  26  25  24  23  22
-//              : PH4  PH3 PE3 PG5 PE5 PE4 PH6 PH5
-
-
 #define RGB2LCD(r, g, b) (r << 16 | g << 8 | b)
+
 
 #define LCD_RED    0xf800
 #define LCD_GREEN  0x07E0
@@ -51,17 +38,16 @@
 LcdIli9481 lcd;
 
 
-
-
 void setup()
 {
   Serial.begin(9600);
 
 
   lcd.begin();
-  lcd.info();
+  Serial.print("device-id: 0x"); Serial.println(lcd.info(), HEX);
   lcd.rotate(0);
   lcd.clearBlack();
+
 
 /*
   for(int i=0; i<5; ++i) {
@@ -74,8 +60,9 @@ void setup()
 
   //Lcd_Print(0, 100, " !                              @ABCDEFGHIJKLMNOPQRSTUVWXYZ       abcdefghijklmnopqrstuvwxyz", LCD_RED);
 
-  lcd.drawText("Hello, Peter! How r u?", 0, 100, LCD_RED);
-  //Lcd_Print_New(0, 100, " ! ", LCD_RED);
+  //lcd.drawText("Hello, Peter! How r u?", 0, 15, LCD_RED);
+  lcd.rotate(90);
+  lcd.drawText("abcdefghijklmnopqrstuvwxyz", 0, 15, LCD_RED);
 }
 
 
@@ -111,7 +98,7 @@ void loop()
       current_color = LCD_BLUE;
       break;
     case 'z':
-      Serial.println('black');
+      Serial.println("black");
       current_color = 0;
       break;
 
@@ -122,6 +109,13 @@ void loop()
     case 'O':
     Serial.println("display-off");
       lcd.setOn(false);
+      break;
+
+    case 'f':
+      lcd.drawFilledRect(40, 40, lcd.width()-2*40, lcd.height()-2*40, current_color);
+      break;
+    case 'F':
+      lcd.drawFilledRect(0, 0, lcd.width(), lcd.height(), current_color);
       break;
 
     case '1':
