@@ -62,7 +62,9 @@ void setup()
 
   //lcd.drawText("Hello, Peter! How r u?", 0, 15, LCD_RED);
   lcd.rotate(90);
-  lcd.drawText("abcdefghijklmnopqrstuvwxyz", 0, 15, LCD_RED);
+  lcd.clear(LCD_BLUE);
+  lcd.drawText("abcdefghijklmnopqrstuvwxyz", 15, 15, LCD_RED);
+  lcd.drawText("ABCDEFGHIJKLMNOPQRSTUVWXYZ", 15, 150, LCD_RED);
 }
 
 

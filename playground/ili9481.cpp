@@ -452,7 +452,7 @@ void Lcd_Print(uint16_t x, unsigned y, const char* t, uint16_t c)
 }
 */
 
-void LcdIli9481::drawText(const char* t, uint16_t x, unsigned y, uint16_t c)
+void LcdIli9481::drawText(const char* t, uint16_t left, unsigned y, uint16_t c)
 {
   uint8_t i;
 
@@ -460,6 +460,8 @@ void LcdIli9481::drawText(const char* t, uint16_t x, unsigned y, uint16_t c)
   GFXfont font;
   GFXglyph g;
   BitStream in;
+
+  uint16_t x = left;
 
   memcpy_P(&font, &FreeMono24pt7b, sizeof(GFXfont));
   
@@ -522,7 +524,7 @@ void LcdIli9481::drawText(const char* t, uint16_t x, unsigned y, uint16_t c)
 
     x += g.xAdvance;
     if((x+g.xAdvance) >= LCD_WIDTH) {
-      x = 0;
+      x = left;
       y += font.yAdvance;
     }
     ++t;
